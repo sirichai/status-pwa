@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0d1117">
+<meta name="mobile-web-app-capable" content="yes">
+<title>Status Monitor</title>
+<link rel="manifest" href="manifest.json">
+<script>if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');</script>
+<style>
+:root {
+  --bg: #0d1117; --bg-card: #161b22; --bg-card-hover: #1c2333;
+  --bg-modal: #1c2333; --bg-input: #0d1117;
+  --text: #e6edf3; --text-secondary: #8b949e; --text-muted: #484f58;
+  --accent: #58a6ff; --ok: #3fb950; --fail: #f85149; --warn: #d29922;
+  --border: #30363d; --radius: 12px; --radius-sm: 8px;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; -webkit-tap-highlight-color: transparent; }
+.app { margin: 0 auto; max-width: 480px; padding-bottom: 72px; }
+
+/* ── Header ── */
+.header { background: var(--bg-card); color: #fff; padding: 14px 16px; position: sticky; top: 0; z-index: 100; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+.header-title { font-size: 18px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+.header-title .icon { font-size: 22px; }
+.header-sub { font-size: 11px; color: var(--text-muted); }
+.sync-btn { background: none; border: none; color: var(--text-secondary); font-size: 22px; cursor: pointer; padding: 6px; border-radius: 8px; }
+.sync-btn:active { opacity: 0.6; }
+.sync-btn.spinning { animation: spin 1s linear infinite; }
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+/* ── Summary bar ── */
+.summary-bar { display: flex; gap: 8px; padding: 12px 16px; overflow-x: auto; }
+.stat-chip { background: var(--bg-card); border: 1px solid var(--border); border-radius: 20px; padding: 6px 14px; font-size: 13px; font-weight: 500; white-space: nowrap; display: flex; align-items: center; gap: 6px; }
+.stat-chip .dot { width: 8px; height: 8px; border-radius: 50%; }
+.dot-ok { background: var(--ok); }
+.dot-fail { background: var(--fail); }
+.dot-warn { background: var(--warn); }
+
+/* ── Script cards ── */
+.card-list { padding: 0 12px; }
+.script-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; margin-bottom: 8px; cursor: pointer; transition: background 0.15s; }
+.script-card:active { background: var(--bg-card-hover); }
+.script-card.status-fail { border-left: 3px solid var(--fail); }
+.script-card.status-warn { border-left: 3px solid var(--warn); }
+.script-card.status-ok { border-left: 3px solid var(--ok); }
+.script-card.status-none { border-left: 3px solid var(--text-muted); }
+.card-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.card-name { font-size: 15px; font-weight: 600; }
+.card-badge { font-size: 10px; padding: 2px 8px; border-radius: 10px; font-weight: 600; text-transform: uppercase; }
+.badge-gas { background: rgba(210,153,34,0.2); color: var(--warn); }
+.badge-python { background: rgba(88,166,255,0.2); color: var(--accent); }
+.card-mid { display: flex; align-items: center; gap: 12px; font-size: 13px; color: var(--text-secondary); margin-bottom: 4px; }
+.card-mid .status-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.card-bottom { display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: var(--text-muted); }
+.card-runs { display: flex; align-items: center; gap: 4px; }
+.card-error { font-size: 12px; color: var(--fail); margin-top: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ── Timeline view ── */
+.timeline-view { display: none; }
+.timeline-view.active { display: block; }
+.dashboard-view.active { display: block; }
+.dashboard-view { display: none; }
+
+.timeline-header { padding: 12px 16px; display: flex; align-items: center; gap: 12px; }
+.back-btn { background: none; border: none; color: var(--accent); font-size: 16px; cursor: pointer; padding: 4px 8px; border-radius: 6px; font-family: inherit; font-weight: 500; }
+.back-btn:active { opacity: 0.6; }
+.timeline-title { font-size: 16px; font-weight: 600; }
+
+.timeline-list { padding: 0 16px; }
+.timeline-day { margin-bottom: 16px; }
+.timeline-day-label { font-size: 12px; color: var(--text-muted); font-weight: 600; padding: 4px 0; border-bottom: 1px solid var(--border); margin-bottom: 8px; }
+.tl-entry { display: flex; align-items: flex-start; gap: 10px; padding: 8px 0; border-bottom: 1px solid rgba(48,54,61,0.5); }
+.tl-dot-col { display: flex; flex-direction: column; align-items: center; padding-top: 4px; }
+.tl-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.tl-info { flex: 1; min-width: 0; }
+.tl-time { font-size: 13px; font-weight: 500; }
+.tl-meta { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+.tl-error { font-size: 12px; color: var(--fail); margin-top: 4px; word-break: break-word; }
+.tl-stats { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+.tl-status { font-size: 12px; font-weight: 600; text-align: right; flex-shrink: 0; }
+.status-ok { color: var(--ok); }
+.status-fail { color: var(--fail); }
+.status-warn { color: var(--warn); }
+
+/* ── Bottom nav ── */
+.bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; z-index: 100; background: var(--bg-card); border-top: 1px solid var(--border); display: flex; padding: 6px 0; padding-bottom: max(6px, env(safe-area-inset-bottom)); max-width: 480px; margin: 0 auto; }
+.nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 4px; cursor: pointer; color: var(--text-muted); font-size: 10px; font-weight: 500; transition: color 0.15s; border: none; background: none; font-family: inherit; }
+.nav-item .nav-icon { font-size: 22px; line-height: 1; }
+.nav-item:active { opacity: 0.7; }
+.nav-item.active { color: var(--accent); }
+
+/* ── Loading ── */
+.loading { text-align: center; padding: 60px 20px; color: var(--text-muted); }
+.loading .spinner { font-size: 28px; animation: spin 1s linear infinite; display: inline-block; margin-bottom: 12px; }
+
+/* ── Empty ── */
+.empty { text-align: center; padding: 40px 20px; color: var(--text-muted); font-size: 14px; }
+
+/* ── All Logs view ── */
+.logs-view { display: none; }
+.logs-view.active { display: block; }
+.log-row { display: flex; align-items: center; gap: 8px; padding: 10px 16px; border-bottom: 1px solid var(--border); font-size: 13px; }
+.log-row .log-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.log-row .log-time { color: var(--text-muted); font-size: 12px; width: 90px; flex-shrink: 0; font-family: 'SF Mono', 'Menlo', monospace; }
+.log-row .log-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+.log-row .log-status { font-size: 11px; font-weight: 600; flex-shrink: 0; }
+.log-row .log-dur { font-size: 11px; color: var(--text-muted); flex-shrink: 0; width: 40px; text-align: right; }
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- Header -->
+  <div class="header">
+    <div>
+      <div class="header-title"><span class="icon">📡</span> Status Monitor</div>
+      <div class="header-sub" id="lastUpdate">Loading...</div>
+    </div>
+    <button class="sync-btn" id="syncBtn" onclick="refresh()">🔄</button>
+  </div>
+
+  <!-- Dashboard view -->
+  <div class="dashboard-view active" id="dashboardView">
+    <div class="summary-bar" id="summaryBar"></div>
+    <div class="card-list" id="cardList">
+      <div class="loading"><div class="spinner">⟳</div><div>Loading scripts...</div></div>
+    </div>
+  </div>
+
+  <!-- Timeline view (per script) -->
+  <div class="timeline-view" id="timelineView">
+    <div class="timeline-header">
+      <button class="back-btn" onclick="showDashboard()">← Back</button>
+      <div class="timeline-title" id="timelineTitle"></div>
+    </div>
+    <div class="timeline-list" id="timelineList">
+      <div class="loading"><div class="spinner">⟳</div><div>Loading history...</div></div>
+    </div>
+  </div>
+
+  <!-- All Logs view -->
+  <div class="logs-view" id="logsView">
+    <div class="card-list" id="logsList" style="padding: 0;">
+      <div class="loading"><div class="spinner">⟳</div><div>Loading logs...</div></div>
+    </div>
+  </div>
+
+  <!-- Bottom nav -->
+  <nav class="bottom-nav">
+    <button class="nav-item active" data-view="dashboard" onclick="switchView('dashboard')">
+      <span class="nav-icon">📊</span>
+      Dashboard
+    </button>
+    <button class="nav-item" data-view="logs" onclick="switchView('logs')">
+      <span class="nav-icon">📋</span>
+      All Logs
+    </button>
+  </nav>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════
+// Config
+// ═══════════════════════════════════════════════════════════════════
+
+var API_URL = ''; // Will be set after GAS deploy
+var IS_GAS = (typeof google !== 'undefined' && google.script && google.script.run);
+var state = { scripts: [], currentView: 'dashboard', currentScript: '' };
+
+// ═══════════════════════════════════════════════════════════════════
+// Data fetching
+// ═══════════════════════════════════════════════════════════════════
+
+function fetchStatus(callback) {
+  if (IS_GAS) {
+    google.script.run
+      .withSuccessHandler(function(r) { callback(null, r); })
+      .withFailureHandler(function(e) { callback(e); })
+      .getStatus();
+  } else if (API_URL) {
+    fetch(API_URL + '?action=getStatus')
+      .then(function(r) { return r.json(); })
+      .then(function(d) { callback(null, d); })
+      .catch(function(e) { callback(e); });
+  } else {
+    callback('No API URL configured');
+  }
+}
+
+function fetchHistory(script, days, callback) {
+  if (IS_GAS) {
+    google.script.run
+      .withSuccessHandler(function(r) { callback(null, r); })
+      .withFailureHandler(function(e) { callback(e); })
+      .getHistory(script, days);
+  } else if (API_URL) {
+    fetch(API_URL + '?action=getHistory&script=' + encodeURIComponent(script) + '&days=' + days)
+      .then(function(r) { return r.json(); })
+      .then(function(d) { callback(null, d); })
+      .catch(function(e) { callback(e); });
+  } else {
+    callback('No API URL configured');
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Rendering — Dashboard
+// ═══════════════════════════════════════════════════════════════════
+
+function renderDashboard(data) {
+  state.scripts = data.scripts || [];
+  document.getElementById('lastUpdate').textContent = 'Updated: ' + formatRelative(data.timestamp);
+
+  // Summary chips
+  var total = state.scripts.length;
+  var okCount = 0, failCount = 0, warnCount = 0;
+  for (var i = 0; i < state.scripts.length; i++) {
+    var st = state.scripts[i].lastStatus;
+    if (st === 'COMPLETED') okCount++;
+    else if (st === 'FAILED') failCount++;
+    else if (st === 'TIMED_OUT') warnCount++;
+  }
+
+  var chips = '<div class="stat-chip"><div class="dot dot-ok"></div>' + okCount + ' OK</div>';
+  if (failCount > 0) chips += '<div class="stat-chip"><div class="dot dot-fail"></div>' + failCount + ' Failed</div>';
+  if (warnCount > 0) chips += '<div class="stat-chip"><div class="dot dot-warn"></div>' + warnCount + ' Timeout</div>';
+  chips += '<div class="stat-chip">' + total + ' scripts</div>';
+  document.getElementById('summaryBar').innerHTML = chips;
+
+  // Script cards
+  var html = '';
+  for (var j = 0; j < state.scripts.length; j++) {
+    var s = state.scripts[j];
+    var statusClass = getStatusClass(s.lastStatus);
+    var dotColor = getStatusColor(s.lastStatus);
+    var badgeClass = (s.type === 'GAS') ? 'badge-gas' : 'badge-python';
+    var relTime = s.lastRun ? formatRelative(s.lastRun) : 'No data';
+    var durText = s.lastDuration ? (parseFloat(s.lastDuration).toFixed(1) + 's') : '';
+
+    html += '<div class="script-card status-' + statusClass + '" onclick="openTimeline(\'' + escapeHtml(s.name) + '\')">';
+    html += '<div class="card-top">';
+    html += '<span class="card-name">' + escapeHtml(s.name) + '</span>';
+    html += '<span class="card-badge ' + badgeClass + '">' + escapeHtml(s.type) + '</span>';
+    html += '</div>';
+    html += '<div class="card-mid">';
+    html += '<span class="status-dot" style="background:' + dotColor + '"></span>';
+    html += '<span>' + escapeHtml(s.lastStatus || 'UNKNOWN') + '</span>';
+    if (durText) html += '<span>· ' + durText + '</span>';
+    html += '<span>· ' + relTime + '</span>';
+    html += '</div>';
+    html += '<div class="card-bottom">';
+    html += '<div class="card-runs">⟳ ' + s.runs24h + ' runs / 24h';
+    if (s.fails24h > 0) html += ' · <span style="color:var(--fail)">' + s.fails24h + ' fails</span>';
+    html += '</div>';
+    if (s.lastFunction) html += '<span>' + escapeHtml(s.lastFunction) + '</span>';
+    html += '</div>';
+    if (s.lastError && s.lastStatus !== 'COMPLETED') {
+      html += '<div class="card-error">' + escapeHtml(s.lastError) + '</div>';
+    }
+    html += '</div>';
+  }
+
+  if (!html) html = '<div class="empty">No scripts found</div>';
+  document.getElementById('cardList').innerHTML = html;
+
+  // Cache
+  try { localStorage.setItem('status_cache', JSON.stringify(data)); } catch(e) {}
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Rendering — Timeline
+// ═══════════════════════════════════════════════════════════════════
+
+function renderTimeline(data) {
+  var entries = data.entries || [];
+  document.getElementById('timelineTitle').textContent = data.script || 'All Scripts';
+
+  if (entries.length === 0) {
+    document.getElementById('timelineList').innerHTML = '<div class="empty">No entries found</div>';
+    return;
+  }
+
+  // Group by date
+  var groups = {};
+  for (var i = 0; i < entries.length; i++) {
+    var e = entries[i];
+    var dateKey = e.timestamp.substring(0, 6); // YYMMDD
+    if (!groups[dateKey]) groups[dateKey] = [];
+    groups[dateKey].push(e);
+  }
+
+  var html = '';
+  var dateKeys = Object.keys(groups).sort().reverse();
+  for (var d = 0; d < dateKeys.length; d++) {
+    var dk = dateKeys[d];
+    var dayEntries = groups[dk];
+    html += '<div class="timeline-day">';
+    html += '<div class="timeline-day-label">' + formatDateLabel(dk) + '</div>';
+
+    for (var k = 0; k < dayEntries.length; k++) {
+      var en = dayEntries[k];
+      var dotColor = getStatusColor(en.status);
+      var statusLabel = en.status;
+      var statusCls = getStatusTextClass(en.status);
+      var timeStr = en.timestamp.length > 7 ? en.timestamp.substring(7) : '';
+      if (timeStr.length === 6) timeStr = timeStr.substring(0, 2) + ':' + timeStr.substring(2, 4) + ':' + timeStr.substring(4);
+
+      html += '<div class="tl-entry">';
+      html += '<div class="tl-dot-col"><div class="tl-dot" style="background:' + dotColor + '"></div></div>';
+      html += '<div class="tl-info">';
+      html += '<div class="tl-time">' + timeStr;
+      if (en.script && !data.script) html += ' · ' + escapeHtml(en.script);
+      html += '</div>';
+      html += '<div class="tl-meta">';
+      if (en.source) html += en.source;
+      if (en['function']) html += ' · ' + escapeHtml(en['function']);
+      if (en.duration && parseFloat(en.duration) > 0) html += ' · ' + parseFloat(en.duration).toFixed(1) + 's';
+      html += '</div>';
+      if (en.found !== undefined && en.found !== '' && en.found !== null) {
+        html += '<div class="tl-stats">Found: ' + en.found;
+        if (en.new_count !== undefined && en.new_count !== '') html += ' · New: ' + en.new_count;
+        if (en.added !== undefined && en.added !== '') html += ' · Updated: ' + en.added;
+        html += '</div>';
+      }
+      if (en.error && en.status !== 'COMPLETED') {
+        html += '<div class="tl-error">' + escapeHtml(en.error) + '</div>';
+      }
+      if (en.note) {
+        html += '<div class="tl-stats">' + escapeHtml(en.note) + '</div>';
+      }
+      html += '</div>';
+      html += '<div class="tl-status ' + statusCls + '">' + statusLabel + '</div>';
+      html += '</div>';
+    }
+    html += '</div>';
+  }
+
+  document.getElementById('timelineList').innerHTML = html;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Rendering — All Logs
+// ═══════════════════════════════════════════════════════════════════
+
+function renderAllLogs(data) {
+  var entries = data.entries || [];
+  if (entries.length === 0) {
+    document.getElementById('logsList').innerHTML = '<div class="empty">No logs found</div>';
+    return;
+  }
+
+  var html = '';
+  for (var i = 0; i < entries.length; i++) {
+    var e = entries[i];
+    var dotColor = getStatusColor(e.status);
+    var statusCls = getStatusTextClass(e.status);
+    var ts = e.timestamp || '';
+    var timeStr = '';
+    if (ts.length >= 13) {
+      var t = ts.substring(7);
+      timeStr = ts.substring(0, 6) + ' ' + t.substring(0, 2) + ':' + t.substring(2, 4);
+    } else {
+      timeStr = ts;
+    }
+    var durText = (e.duration && parseFloat(e.duration) > 0) ? parseFloat(e.duration).toFixed(0) + 's' : '';
+
+    html += '<div class="log-row">';
+    html += '<div class="log-dot" style="background:' + dotColor + '"></div>';
+    html += '<div class="log-time">' + timeStr + '</div>';
+    html += '<div class="log-name">' + escapeHtml(e.script || '') + '</div>';
+    html += '<div class="log-status ' + statusCls + '">' + (e.status || '') + '</div>';
+    html += '<div class="log-dur">' + durText + '</div>';
+    html += '</div>';
+  }
+  document.getElementById('logsList').innerHTML = html;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Navigation
+// ═══════════════════════════════════════════════════════════════════
+
+function switchView(view) {
+  state.currentView = view;
+  document.getElementById('dashboardView').className = 'dashboard-view' + (view === 'dashboard' ? ' active' : '');
+  document.getElementById('timelineView').className = 'timeline-view' + (view === 'timeline' ? ' active' : '');
+  document.getElementById('logsView').className = 'logs-view' + (view === 'logs' ? ' active' : '');
+
+  var navItems = document.querySelectorAll('.nav-item');
+  for (var i = 0; i < navItems.length; i++) {
+    navItems[i].className = 'nav-item' + (navItems[i].getAttribute('data-view') === view ? ' active' : '');
+  }
+
+  if (view === 'logs') loadAllLogs();
+}
+
+function showDashboard() {
+  switchView('dashboard');
+}
+
+function openTimeline(scriptName) {
+  state.currentScript = scriptName;
+  switchView('timeline');
+  document.getElementById('timelineTitle').textContent = scriptName;
+  document.getElementById('timelineList').innerHTML = '<div class="loading"><div class="spinner">⟳</div><div>Loading history...</div></div>';
+
+  fetchHistory(scriptName, 7, function(err, data) {
+    if (err) {
+      document.getElementById('timelineList').innerHTML = '<div class="empty">Error loading history</div>';
+      return;
+    }
+    renderTimeline(data);
+  });
+}
+
+function loadAllLogs() {
+  document.getElementById('logsList').innerHTML = '<div class="loading"><div class="spinner">⟳</div><div>Loading logs...</div></div>';
+  fetchHistory('', 3, function(err, data) {
+    if (err) {
+      document.getElementById('logsList').innerHTML = '<div class="empty">Error loading logs</div>';
+      return;
+    }
+    renderAllLogs(data);
+  });
+}
+
+function refresh() {
+  var btn = document.getElementById('syncBtn');
+  btn.classList.add('spinning');
+  fetchStatus(function(err, data) {
+    btn.classList.remove('spinning');
+    if (err) return;
+    renderDashboard(data);
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Helpers
+// ═══════════════════════════════════════════════════════════════════
+
+function getStatusClass(status) {
+  if (status === 'COMPLETED') return 'ok';
+  if (status === 'FAILED') return 'fail';
+  if (status === 'TIMED_OUT' || status === 'CANCELED') return 'warn';
+  return 'none';
+}
+
+function getStatusColor(status) {
+  if (status === 'COMPLETED') return 'var(--ok)';
+  if (status === 'FAILED') return 'var(--fail)';
+  if (status === 'TIMED_OUT' || status === 'CANCELED') return 'var(--warn)';
+  return 'var(--text-muted)';
+}
+
+function getStatusTextClass(status) {
+  if (status === 'COMPLETED') return 'status-ok';
+  if (status === 'FAILED') return 'status-fail';
+  if (status === 'TIMED_OUT' || status === 'CANCELED') return 'status-warn';
+  return '';
+}
+
+function formatRelative(ts) {
+  if (!ts) return 'Never';
+  // ts format: YYMMDD.HHmmss
+  var parts = ts.split('.');
+  if (parts.length < 2) return ts;
+  var d = parts[0], t = parts[1];
+  if (d.length !== 6 || t.length !== 6) return ts;
+
+  var year = 2000 + parseInt(d.substring(0, 2));
+  var month = parseInt(d.substring(2, 4)) - 1;
+  var day = parseInt(d.substring(4, 6));
+  var hour = parseInt(t.substring(0, 2));
+  var min = parseInt(t.substring(2, 4));
+  var sec = parseInt(t.substring(4, 6));
+
+  var then = new Date(year, month, day, hour, min, sec);
+  var now = new Date();
+  var diff = Math.floor((now - then) / 1000);
+
+  if (diff < 0) return 'just now';
+  if (diff < 60) return diff + 's ago';
+  if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
+  if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
+  return Math.floor(diff / 86400) + 'd ago';
+}
+
+function formatDateLabel(yymmdd) {
+  if (yymmdd.length !== 6) return yymmdd;
+  var year = 2000 + parseInt(yymmdd.substring(0, 2));
+  var month = parseInt(yymmdd.substring(2, 4)) - 1;
+  var day = parseInt(yymmdd.substring(4, 6));
+  var d = new Date(year, month, day);
+  var days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  var months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  return days[d.getDay()] + ', ' + day + ' ' + months[month] + ' ' + year;
+}
+
+function escapeHtml(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Init
+// ═══════════════════════════════════════════════════════════════════
+
+(function init() {
+  // Try cache first
+  try {
+    var cached = localStorage.getItem('status_cache');
+    if (cached) {
+      var data = JSON.parse(cached);
+      renderDashboard(data);
+    }
+  } catch(e) {}
+
+  // Fetch fresh
+  fetchStatus(function(err, data) {
+    if (err) {
+      if (!state.scripts.length) {
+        document.getElementById('cardList').innerHTML = '<div class="empty">Could not load data</div>';
+      }
+      return;
+    }
+    renderDashboard(data);
+  });
+})();
+</script>
+</body>
+</html>
