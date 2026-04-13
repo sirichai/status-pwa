@@ -12,38 +12,40 @@
 <script>if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');</script>
 <style>
 :root {
-  --bg: #0d1117; --bg-card: #161b22; --bg-card-hover: #1c2333;
-  --bg-modal: #1c2333; --bg-input: #0d1117;
+  --bg: #0d1117; --bg-card: #161b22; --bg-hover: #1c2333;
+  --bg-input: #0d1117;
   --text: #e6edf3; --text-secondary: #8b949e; --text-muted: #484f58;
   --accent: #58a6ff; --ok: #3fb950; --fail: #f85149; --warn: #d29922;
-  --border: #30363d; --radius: 12px; --radius-sm: 8px;
+  --border: #30363d; --radius: 8px;
 }
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; -webkit-tap-highlight-color: transparent; }
-.app { margin: 0 auto; max-width: 480px; padding-bottom: 72px; }
 
-/* ── Header ── */
-.header { background: var(--bg-card); color: #fff; padding: 14px 16px; position: sticky; top: 0; z-index: 100; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+/* ══════════ SHARED ══════════ */
+.header { background: var(--bg-card); border-bottom: 1px solid var(--border); padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
 .header-title { font-size: 18px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
-.header-title .icon { font-size: 22px; }
+.header-title .icon { font-size: 20px; }
 .header-sub { font-size: 11px; color: var(--text-muted); }
-.sync-btn { background: none; border: none; color: var(--text-secondary); font-size: 22px; cursor: pointer; padding: 6px; border-radius: 8px; }
-.sync-btn:active { opacity: 0.6; }
-.sync-btn.spinning { animation: spin 1s linear infinite; }
+.sync-btn { background: var(--bg-hover); border: 1px solid var(--border); color: var(--text-secondary); font-size: 14px; cursor: pointer; padding: 6px 14px; border-radius: var(--radius); display: flex; align-items: center; gap: 6px; font-family: inherit; }
+.sync-btn:hover { color: var(--text); }
+.sync-btn .spin-icon { display: inline-block; }
+.sync-btn.spinning .spin-icon { animation: spin 1s linear infinite; }
 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+.loading { text-align: center; padding: 60px 20px; color: var(--text-muted); }
+.loading .spinner { font-size: 24px; animation: spin 1s linear infinite; display: inline-block; margin-bottom: 8px; }
+.empty { text-align: center; padding: 40px 20px; color: var(--text-muted); font-size: 14px; }
 
-/* ── Summary bar ── */
-.summary-bar { display: flex; gap: 8px; padding: 12px 16px; overflow-x: auto; }
+/* ══════════ MOBILE VIEW ══════════ */
+.mobile-view { display: none; }
+.m-summary-bar { display: flex; gap: 8px; padding: 12px 16px; overflow-x: auto; }
 .stat-chip { background: var(--bg-card); border: 1px solid var(--border); border-radius: 20px; padding: 6px 14px; font-size: 13px; font-weight: 500; white-space: nowrap; display: flex; align-items: center; gap: 6px; }
 .stat-chip .dot { width: 8px; height: 8px; border-radius: 50%; }
 .dot-ok { background: var(--ok); }
 .dot-fail { background: var(--fail); }
 .dot-warn { background: var(--warn); }
 
-/* ── Script cards ── */
-.card-list { padding: 0 12px; }
-.script-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; margin-bottom: 8px; cursor: pointer; transition: background 0.15s; }
-.script-card:active { background: var(--bg-card-hover); }
+.script-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; margin: 0 12px 8px; cursor: pointer; transition: background 0.15s; }
+.script-card:active { background: var(--bg-hover); }
 .script-card.status-fail { border-left: 3px solid var(--fail); }
 .script-card.status-warn { border-left: 3px solid var(--warn); }
 .script-card.status-ok { border-left: 3px solid var(--ok); }
@@ -56,451 +58,462 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .card-mid { display: flex; align-items: center; gap: 12px; font-size: 13px; color: var(--text-secondary); margin-bottom: 4px; }
 .card-mid .status-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
 .card-bottom { display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: var(--text-muted); }
-.card-runs { display: flex; align-items: center; gap: 4px; }
 .card-error { font-size: 12px; color: var(--fail); margin-top: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-/* ── Timeline view ── */
-.timeline-view { display: none; }
-.timeline-view.active { display: block; }
-.dashboard-view.active { display: block; }
-.dashboard-view { display: none; }
-
+/* Mobile timeline */
+.m-timeline { display: none; }
+.m-timeline.active { display: block; }
+.m-dashboard.active { display: block; }
+.m-dashboard { display: none; }
 .timeline-header { padding: 12px 16px; display: flex; align-items: center; gap: 12px; }
 .back-btn { background: none; border: none; color: var(--accent); font-size: 16px; cursor: pointer; padding: 4px 8px; border-radius: 6px; font-family: inherit; font-weight: 500; }
 .back-btn:active { opacity: 0.6; }
 .timeline-title { font-size: 16px; font-weight: 600; }
-
 .timeline-list { padding: 0 16px; }
 .timeline-day { margin-bottom: 16px; }
 .timeline-day-label { font-size: 12px; color: var(--text-muted); font-weight: 600; padding: 4px 0; border-bottom: 1px solid var(--border); margin-bottom: 8px; }
 .tl-entry { display: flex; align-items: flex-start; gap: 10px; padding: 8px 0; border-bottom: 1px solid rgba(48,54,61,0.5); }
-.tl-dot-col { display: flex; flex-direction: column; align-items: center; padding-top: 4px; }
-.tl-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.tl-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; margin-top: 4px; }
 .tl-info { flex: 1; min-width: 0; }
 .tl-time { font-size: 13px; font-weight: 500; }
 .tl-meta { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
 .tl-error { font-size: 12px; color: var(--fail); margin-top: 4px; word-break: break-word; }
 .tl-stats { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
-.tl-status { font-size: 12px; font-weight: 600; text-align: right; flex-shrink: 0; }
+.tl-status { font-size: 12px; font-weight: 600; flex-shrink: 0; }
 .status-ok { color: var(--ok); }
 .status-fail { color: var(--fail); }
 .status-warn { color: var(--warn); }
 
-/* ── Bottom nav ── */
-.bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; z-index: 100; background: var(--bg-card); border-top: 1px solid var(--border); display: flex; padding: 6px 0; padding-bottom: max(6px, env(safe-area-inset-bottom)); max-width: 480px; margin: 0 auto; }
+/* Mobile bottom nav */
+.bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; z-index: 100; background: var(--bg-card); border-top: 1px solid var(--border); display: flex; padding: 6px 0; padding-bottom: max(6px, env(safe-area-inset-bottom)); }
 .nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 4px; cursor: pointer; color: var(--text-muted); font-size: 10px; font-weight: 500; transition: color 0.15s; border: none; background: none; font-family: inherit; }
 .nav-item .nav-icon { font-size: 22px; line-height: 1; }
 .nav-item:active { opacity: 0.7; }
 .nav-item.active { color: var(--accent); }
 
-/* ── Loading ── */
-.loading { text-align: center; padding: 60px 20px; color: var(--text-muted); }
-.loading .spinner { font-size: 28px; animation: spin 1s linear infinite; display: inline-block; margin-bottom: 12px; }
-
-/* ── Empty ── */
-.empty { text-align: center; padding: 40px 20px; color: var(--text-muted); font-size: 14px; }
-
-/* ── All Logs view ── */
-.logs-view { display: none; }
-.logs-view.active { display: block; }
+/* Mobile logs */
+.m-logs { display: none; }
+.m-logs.active { display: block; }
 .log-row { display: flex; align-items: center; gap: 8px; padding: 10px 16px; border-bottom: 1px solid var(--border); font-size: 13px; }
 .log-row .log-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
 .log-row .log-time { color: var(--text-muted); font-size: 12px; width: 90px; flex-shrink: 0; font-family: 'SF Mono', 'Menlo', monospace; }
 .log-row .log-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
 .log-row .log-status { font-size: 11px; font-weight: 600; flex-shrink: 0; }
 .log-row .log-dur { font-size: 11px; color: var(--text-muted); flex-shrink: 0; width: 40px; text-align: right; }
+
+/* ══════════ DESKTOP VIEW ══════════ */
+.desktop-view { display: none; }
+.d-content { display: flex; flex: 1; overflow: hidden; }
+.d-sidebar { width: 220px; flex-shrink: 0; background: var(--bg); border-right: 1px solid var(--border); padding: 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 20px; }
+.sidebar-title { font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.5px; margin-bottom: 8px; }
+.sidebar-stat { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 6px; font-size: 13px; cursor: pointer; transition: background 0.15s; }
+.sidebar-stat:hover { background: var(--bg-hover); }
+.sidebar-stat.active { background: var(--bg-hover); color: var(--accent); }
+.sidebar-stat .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.sidebar-stat .count { margin-left: auto; font-weight: 600; font-size: 14px; }
+.search-input { width: 100%; background: var(--bg-input); border: 1px solid var(--border); color: var(--text); padding: 8px 10px; border-radius: 6px; font-size: 13px; font-family: inherit; outline: none; }
+.search-input:focus { border-color: var(--accent); }
+.search-input::placeholder { color: var(--text-muted); }
+.filter-btn { width: 100%; background: none; border: 1px solid var(--border); color: var(--text-secondary); padding: 7px 10px; border-radius: 6px; font-size: 13px; cursor: pointer; text-align: left; font-family: inherit; transition: all 0.15s; }
+.filter-btn:hover { background: var(--bg-hover); }
+.filter-btn.active { border-color: var(--accent); color: var(--accent); background: rgba(88,166,255,0.08); }
+.filter-group { display: flex; flex-direction: column; gap: 4px; }
+.d-main { flex: 1; overflow-y: auto; padding: 20px 24px; display: flex; flex-direction: column; gap: 16px; }
+
+/* Desktop summary cards */
+.d-summary-row { display: flex; gap: 12px; flex-wrap: wrap; }
+.d-summary-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 18px; min-width: 140px; flex: 1; }
+.d-summary-card .label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px; margin-bottom: 4px; }
+.d-summary-card .value { font-size: 28px; font-weight: 700; }
+.d-summary-card .sub { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+.d-summary-card.card-ok .value { color: var(--ok); }
+.d-summary-card.card-fail .value { color: var(--fail); }
+.d-summary-card.card-warn .value { color: var(--warn); }
+.d-summary-card.card-total .value { color: var(--accent); }
+
+/* Desktop table */
+.d-table-wrap { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; flex: 1; display: flex; flex-direction: column; }
+.d-table-bar { padding: 10px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+.d-table-title { font-size: 14px; font-weight: 600; }
+.d-table-count { font-size: 12px; color: var(--text-muted); }
+.d-table-scroll { overflow-y: auto; flex: 1; }
+.d-table { width: 100%; border-collapse: collapse; }
+.d-table thead th { position: sticky; top: 0; background: var(--bg-card); padding: 10px 14px; text-align: left; font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.3px; border-bottom: 1px solid var(--border); cursor: pointer; white-space: nowrap; user-select: none; }
+.d-table thead th:hover { color: var(--text-secondary); }
+.d-table thead th.sorted { color: var(--accent); }
+.d-table tbody tr { border-bottom: 1px solid rgba(48,54,61,0.5); cursor: pointer; transition: background 0.1s; }
+.d-table tbody tr:hover { background: var(--bg-hover); }
+.d-table tbody tr.selected { background: rgba(88,166,255,0.08); }
+.d-table tbody td { padding: 10px 14px; font-size: 13px; white-space: nowrap; }
+.td-name { font-weight: 600; }
+.td-badge { display: inline-block; font-size: 10px; padding: 2px 8px; border-radius: 10px; font-weight: 600; text-transform: uppercase; }
+.td-status { display: flex; align-items: center; gap: 6px; }
+.td-status .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.td-error { max-width: 250px; overflow: hidden; text-overflow: ellipsis; color: var(--fail); font-size: 12px; }
+.td-muted { color: var(--text-muted); }
+.td-right { text-align: right; }
+
+/* Desktop history panel */
+.d-history { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; max-height: 360px; display: flex; flex-direction: column; }
+.d-history.hidden { display: none; }
+.d-history-header { padding: 10px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+.d-history-title { font-size: 14px; font-weight: 600; }
+.close-btn { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 18px; padding: 2px 6px; border-radius: 4px; font-family: inherit; }
+.close-btn:hover { color: var(--text); background: var(--bg-hover); }
+.d-history-body { overflow-y: auto; flex: 1; }
+.d-htable { width: 100%; border-collapse: collapse; }
+.d-htable th { padding: 8px 14px; text-align: left; font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; border-bottom: 1px solid var(--border); background: var(--bg-card); position: sticky; top: 0; }
+.d-htable td { padding: 8px 14px; font-size: 12px; border-bottom: 1px solid rgba(48,54,61,0.4); }
+.d-htable tr:hover { background: var(--bg-hover); }
+.d-footer { background: var(--bg-card); border-top: 1px solid var(--border); padding: 8px 24px; font-size: 11px; color: var(--text-muted); display: flex; justify-content: space-between; flex-shrink: 0; }
+.d-auto-refresh { font-size: 12px; color: var(--text-muted); display: flex; align-items: center; gap: 6px; }
+.d-auto-refresh input { accent-color: var(--accent); }
+
+/* ══════════ RESPONSIVE SWITCH ══════════ */
+@media (max-width: 767px) {
+  .mobile-view { display: block; }
+  .desktop-view { display: none !important; }
+  .app { padding-bottom: 72px; }
+}
+@media (min-width: 768px) {
+  .mobile-view { display: none !important; }
+  .desktop-view { display: flex; flex-direction: column; height: 100vh; }
+  .bottom-nav { display: none !important; }
+}
 </style>
 </head>
 <body>
-<div class="app">
-  <!-- Header -->
+
+<!-- ══════════ MOBILE ══════════ -->
+<div class="mobile-view">
   <div class="header">
     <div>
       <div class="header-title"><span class="icon">📡</span> Status Monitor</div>
-      <div class="header-sub" id="lastUpdate">Loading...</div>
+      <div class="header-sub" id="mLastUpdate">Loading...</div>
     </div>
-    <button class="sync-btn" id="syncBtn" onclick="refresh()">🔄</button>
+    <button class="sync-btn" onclick="refresh()"><span class="spin-icon" id="mSyncIcon">⟳</span></button>
   </div>
-
-  <!-- Dashboard view -->
-  <div class="dashboard-view active" id="dashboardView">
-    <div class="summary-bar" id="summaryBar"></div>
-    <div class="card-list" id="cardList">
-      <div class="loading"><div class="spinner">⟳</div><div>Loading scripts...</div></div>
-    </div>
+  <div class="m-dashboard active" id="mDashboard">
+    <div class="m-summary-bar" id="mSummaryBar"></div>
+    <div id="mCardList"><div class="loading"><div class="spinner">⟳</div><div>Loading...</div></div></div>
   </div>
-
-  <!-- Timeline view (per script) -->
-  <div class="timeline-view" id="timelineView">
+  <div class="m-timeline" id="mTimeline">
     <div class="timeline-header">
-      <button class="back-btn" onclick="showDashboard()">← Back</button>
-      <div class="timeline-title" id="timelineTitle"></div>
+      <button class="back-btn" onclick="mShowDashboard()">← Back</button>
+      <div class="timeline-title" id="mTimelineTitle"></div>
     </div>
-    <div class="timeline-list" id="timelineList">
-      <div class="loading"><div class="spinner">⟳</div><div>Loading history...</div></div>
-    </div>
+    <div class="timeline-list" id="mTimelineList"></div>
   </div>
-
-  <!-- All Logs view -->
-  <div class="logs-view" id="logsView">
-    <div class="card-list" id="logsList" style="padding: 0;">
-      <div class="loading"><div class="spinner">⟳</div><div>Loading logs...</div></div>
-    </div>
+  <div class="m-logs" id="mLogs">
+    <div id="mLogsList"><div class="loading"><div class="spinner">⟳</div><div>Loading...</div></div></div>
   </div>
-
-  <!-- Bottom nav -->
   <nav class="bottom-nav">
-    <button class="nav-item active" data-view="dashboard" onclick="switchView('dashboard')">
-      <span class="nav-icon">📊</span>
-      Dashboard
-    </button>
-    <button class="nav-item" data-view="logs" onclick="switchView('logs')">
-      <span class="nav-icon">📋</span>
-      All Logs
-    </button>
+    <button class="nav-item active" data-view="dashboard" onclick="mSwitchView('dashboard')"><span class="nav-icon">📊</span>Dashboard</button>
+    <button class="nav-item" data-view="logs" onclick="mSwitchView('logs')"><span class="nav-icon">📋</span>All Logs</button>
   </nav>
+</div>
+
+<!-- ══════════ DESKTOP ══════════ -->
+<div class="desktop-view">
+  <div class="header" style="padding:12px 24px;">
+    <div style="display:flex;align-items:center;gap:16px;">
+      <div class="header-title"><span class="icon">📡</span> Status Dashboard</div>
+      <div class="header-sub" id="dLastUpdate">Loading...</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px;">
+      <label class="d-auto-refresh"><input type="checkbox" id="dAutoRefresh" checked> Auto-refresh 60s</label>
+      <button class="sync-btn" id="dSyncBtn" onclick="refresh()"><span class="spin-icon">⟳</span> Refresh</button>
+    </div>
+  </div>
+  <div class="d-content">
+    <div class="d-sidebar">
+      <div>
+        <div class="sidebar-title">Status</div>
+        <div id="dSidebarStats">
+          <div class="sidebar-stat active" data-filter="all" onclick="dFilterStatus('all')"><span>All Scripts</span><span class="count" id="dCountAll">-</span></div>
+          <div class="sidebar-stat" data-filter="ok" onclick="dFilterStatus('ok')"><span class="dot" style="background:var(--ok)"></span><span>OK</span><span class="count" id="dCountOk">-</span></div>
+          <div class="sidebar-stat" data-filter="fail" onclick="dFilterStatus('fail')"><span class="dot" style="background:var(--fail)"></span><span>Failed</span><span class="count" id="dCountFail">-</span></div>
+          <div class="sidebar-stat" data-filter="warn" onclick="dFilterStatus('warn')"><span class="dot" style="background:var(--warn)"></span><span>Timeout</span><span class="count" id="dCountWarn">-</span></div>
+        </div>
+      </div>
+      <div>
+        <div class="sidebar-title">Type</div>
+        <div class="filter-group">
+          <button class="filter-btn active" data-type="all" onclick="dFilterType('all')">All</button>
+          <button class="filter-btn" data-type="GAS" onclick="dFilterType('GAS')">GAS</button>
+          <button class="filter-btn" data-type="Python" onclick="dFilterType('Python')">Python</button>
+        </div>
+      </div>
+      <div>
+        <div class="sidebar-title">Search</div>
+        <input class="search-input" type="text" id="dSearchInput" placeholder="Filter scripts..." oninput="dApplyFilters()">
+      </div>
+    </div>
+    <div class="d-main">
+      <div class="d-summary-row" id="dSummaryRow">
+        <div class="d-summary-card card-total"><div class="label">Total</div><div class="value" id="dSumTotal">-</div></div>
+        <div class="d-summary-card card-ok"><div class="label">OK</div><div class="value" id="dSumOk">-</div></div>
+        <div class="d-summary-card card-fail"><div class="label">Failed</div><div class="value" id="dSumFail">-</div></div>
+        <div class="d-summary-card card-warn"><div class="label">Timeout</div><div class="value" id="dSumWarn">-</div></div>
+        <div class="d-summary-card"><div class="label">Runs (24h)</div><div class="value" id="dSumRuns">-</div><div class="sub" id="dSumFails24"></div></div>
+      </div>
+      <div class="d-table-wrap">
+        <div class="d-table-bar"><div class="d-table-title">Scripts</div><div class="d-table-count" id="dTableCount"></div></div>
+        <div class="d-table-scroll">
+          <table class="d-table" id="dMainTable">
+            <thead><tr>
+              <th data-col="name" onclick="dSortBy('name')">Name <span class="sort-arrow"></span></th>
+              <th data-col="type" onclick="dSortBy('type')">Type <span class="sort-arrow"></span></th>
+              <th data-col="lastStatus" onclick="dSortBy('lastStatus')">Status <span class="sort-arrow"></span></th>
+              <th data-col="lastRun" onclick="dSortBy('lastRun')">Last Run <span class="sort-arrow"></span></th>
+              <th data-col="lastDuration" onclick="dSortBy('lastDuration')">Duration <span class="sort-arrow"></span></th>
+              <th data-col="runs24h" onclick="dSortBy('runs24h')">24h Runs <span class="sort-arrow"></span></th>
+              <th data-col="fails24h" onclick="dSortBy('fails24h')">24h Fails <span class="sort-arrow"></span></th>
+              <th data-col="lastError" onclick="dSortBy('lastError')">Error <span class="sort-arrow"></span></th>
+            </tr></thead>
+            <tbody id="dTableBody"><tr><td colspan="8"><div class="loading"><div class="spinner">⟳</div></div></td></tr></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="d-history hidden" id="dHistoryPanel">
+        <div class="d-history-header"><div class="d-history-title" id="dHistoryTitle">History</div><button class="close-btn" onclick="dCloseHistory()">✕</button></div>
+        <div class="d-history-body">
+          <table class="d-htable"><thead><tr><th>Time</th><th>Source</th><th>Function</th><th>Status</th><th>Duration</th><th>Found</th><th>New</th><th>Added</th><th>Error</th><th>Note</th></tr></thead>
+          <tbody id="dHistoryBody"></tbody></table>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="d-footer"><span id="dFooterLeft">-</span><span>Status Monitor</span></div>
 </div>
 
 <script>
 // ═══════════════════════════════════════════════════════════════════
-// Config
+// Shared Config & State
 // ═══════════════════════════════════════════════════════════════════
 
 var API_URL = 'https://script.google.com/macros/s/AKfycbyJgWHsro6BDSGBUW0Ax-stnZpzr49Ex1rj80PxmJMX-Ac7z_7UM-lvdlRuFNrxVdPW/exec';
 var IS_GAS = (typeof google !== 'undefined' && google.script && google.script.run);
-var state = { scripts: [], currentView: 'dashboard', currentScript: '' };
+var state = { scripts: [], filtered: [], sortCol: 'lastRun', sortAsc: false, statusFilter: 'all', typeFilter: 'all', selectedScript: '', mView: 'dashboard', refreshTimer: null };
 
 // ═══════════════════════════════════════════════════════════════════
-// Data fetching
+// Shared Data Fetching
 // ═══════════════════════════════════════════════════════════════════
 
-function fetchStatus(callback) {
-  if (IS_GAS) {
-    google.script.run
-      .withSuccessHandler(function(r) { callback(null, r); })
-      .withFailureHandler(function(e) { callback(e); })
-      .getStatus();
-  } else if (API_URL) {
-    fetch(API_URL + '?action=getStatus')
-      .then(function(r) { return r.json(); })
-      .then(function(d) { callback(null, d); })
-      .catch(function(e) { callback(e); });
-  } else {
-    callback('No API URL configured');
-  }
+function fetchStatus(cb) {
+  if (IS_GAS) { google.script.run.withSuccessHandler(function(r){cb(null,r);}).withFailureHandler(function(e){cb(e);}).getStatus(); }
+  else { fetch(API_URL+'?action=getStatus').then(function(r){return r.json();}).then(function(d){cb(null,d);}).catch(function(e){cb(e);}); }
 }
-
-function fetchHistory(script, days, callback) {
-  if (IS_GAS) {
-    google.script.run
-      .withSuccessHandler(function(r) { callback(null, r); })
-      .withFailureHandler(function(e) { callback(e); })
-      .getHistory(script, days);
-  } else if (API_URL) {
-    fetch(API_URL + '?action=getHistory&script=' + encodeURIComponent(script) + '&days=' + days)
-      .then(function(r) { return r.json(); })
-      .then(function(d) { callback(null, d); })
-      .catch(function(e) { callback(e); });
-  } else {
-    callback('No API URL configured');
-  }
+function fetchHistory(script, days, cb) {
+  if (IS_GAS) { google.script.run.withSuccessHandler(function(r){cb(null,r);}).withFailureHandler(function(e){cb(e);}).getHistory(script,days); }
+  else { fetch(API_URL+'?action=getHistory&script='+encodeURIComponent(script)+'&days='+days).then(function(r){return r.json();}).then(function(d){cb(null,d);}).catch(function(e){cb(e);}); }
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// Rendering — Dashboard
+// Shared Helpers
 // ═══════════════════════════════════════════════════════════════════
 
-function renderDashboard(data) {
+function getStatusColor(s) { if(s==='COMPLETED')return'var(--ok)';if(s==='FAILED')return'var(--fail)';if(s==='TIMED_OUT'||s==='CANCELED')return'var(--warn)';return'var(--text-muted)'; }
+function getStatusClass(s) { if(s==='COMPLETED')return'ok';if(s==='FAILED')return'fail';if(s==='TIMED_OUT'||s==='CANCELED')return'warn';return'none'; }
+function getStatusTextClass(s) { if(s==='COMPLETED')return'status-ok';if(s==='FAILED')return'status-fail';if(s==='TIMED_OUT'||s==='CANCELED')return'status-warn';return''; }
+function esc(s) { if(!s)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+
+function formatRelative(ts) {
+  if(!ts)return'-';
+  var sep=ts.indexOf('.')>-1?'.':':';var parts=ts.split(sep);if(parts.length<2)return ts;
+  var d=parts[0],t=parts[1];if(d.length!==6||t.length!==6)return ts;
+  var then=new Date(2000+parseInt(d.substring(0,2)),parseInt(d.substring(2,4))-1,parseInt(d.substring(4,6)),parseInt(t.substring(0,2)),parseInt(t.substring(2,4)),parseInt(t.substring(4,6)));
+  var diff=Math.floor((new Date()-then)/1000);
+  if(diff<0)return'just now';if(diff<60)return diff+'s ago';if(diff<3600)return Math.floor(diff/60)+'m ago';if(diff<86400)return Math.floor(diff/3600)+'h ago';return Math.floor(diff/86400)+'d ago';
+}
+function formatDateLabel(yymmdd) {
+  if(yymmdd.length!==6)return yymmdd;
+  var d=new Date(2000+parseInt(yymmdd.substring(0,2)),parseInt(yymmdd.substring(2,4))-1,parseInt(yymmdd.substring(4,6)));
+  var days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'],months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return days[d.getDay()]+', '+d.getDate()+' '+months[d.getMonth()]+' '+(2000+parseInt(yymmdd.substring(0,2)));
+}
+function formatTime(ts) { if(!ts)return'-';var sep=ts.indexOf('.')>-1?'.':':';var p=ts.split(sep);if(p.length<2)return ts;var t=p[1];if(t.length!==6)return ts;return t.substring(0,2)+':'+t.substring(2,4)+':'+t.substring(4,6); }
+
+// ═══════════════════════════════════════════════════════════════════
+// Shared: onData + refresh
+// ═══════════════════════════════════════════════════════════════════
+
+function onData(data) {
   state.scripts = data.scripts || [];
-  document.getElementById('lastUpdate').textContent = 'Updated: ' + formatRelative(data.timestamp);
-
-  // Summary chips
-  var total = state.scripts.length;
-  var okCount = 0, failCount = 0, warnCount = 0;
-  for (var i = 0; i < state.scripts.length; i++) {
-    var st = state.scripts[i].lastStatus;
-    if (st === 'COMPLETED') okCount++;
-    else if (st === 'FAILED') failCount++;
-    else if (st === 'TIMED_OUT') warnCount++;
-  }
-
-  var chips = '<div class="stat-chip"><div class="dot dot-ok"></div>' + okCount + ' OK</div>';
-  if (failCount > 0) chips += '<div class="stat-chip"><div class="dot dot-fail"></div>' + failCount + ' Failed</div>';
-  if (warnCount > 0) chips += '<div class="stat-chip"><div class="dot dot-warn"></div>' + warnCount + ' Timeout</div>';
-  chips += '<div class="stat-chip">' + total + ' scripts</div>';
-  document.getElementById('summaryBar').innerHTML = chips;
-
-  // Script cards
-  var html = '';
-  for (var j = 0; j < state.scripts.length; j++) {
-    var s = state.scripts[j];
-    var statusClass = getStatusClass(s.lastStatus);
-    var dotColor = getStatusColor(s.lastStatus);
-    var badgeClass = (s.type === 'GAS') ? 'badge-gas' : 'badge-python';
-    var relTime = s.lastRun ? formatRelative(s.lastRun) : 'No data';
-    var durText = s.lastDuration ? (parseFloat(s.lastDuration).toFixed(1) + 's') : '';
-
-    html += '<div class="script-card status-' + statusClass + '" onclick="openTimeline(\'' + escapeHtml(s.name) + '\')">';
-    html += '<div class="card-top">';
-    html += '<span class="card-name">' + escapeHtml(s.name) + '</span>';
-    html += '<span class="card-badge ' + badgeClass + '">' + escapeHtml(s.type) + '</span>';
-    html += '</div>';
-    html += '<div class="card-mid">';
-    html += '<span class="status-dot" style="background:' + dotColor + '"></span>';
-    html += '<span>' + escapeHtml(s.lastStatus || 'UNKNOWN') + '</span>';
-    if (durText) html += '<span>· ' + durText + '</span>';
-    html += '<span>· ' + relTime + '</span>';
-    html += '</div>';
-    html += '<div class="card-bottom">';
-    html += '<div class="card-runs">⟳ ' + s.runs24h + ' runs / 24h';
-    if (s.fails24h > 0) html += ' · <span style="color:var(--fail)">' + s.fails24h + ' fails</span>';
-    html += '</div>';
-    if (s.lastFunction) html += '<span>' + escapeHtml(s.lastFunction) + '</span>';
-    html += '</div>';
-    if (s.lastError && s.lastStatus !== 'COMPLETED') {
-      html += '<div class="card-error">' + escapeHtml(s.lastError) + '</div>';
-    }
-    html += '</div>';
-  }
-
-  if (!html) html = '<div class="empty">No scripts found</div>';
-  document.getElementById('cardList').innerHTML = html;
-
-  // Cache
   try { localStorage.setItem('status_cache', JSON.stringify(data)); } catch(e) {}
-}
-
-// ═══════════════════════════════════════════════════════════════════
-// Rendering — Timeline
-// ═══════════════════════════════════════════════════════════════════
-
-function renderTimeline(data) {
-  var entries = data.entries || [];
-  document.getElementById('timelineTitle').textContent = data.script || 'All Scripts';
-
-  if (entries.length === 0) {
-    document.getElementById('timelineList').innerHTML = '<div class="empty">No entries found</div>';
-    return;
-  }
-
-  // Group by date
-  var groups = {};
-  for (var i = 0; i < entries.length; i++) {
-    var e = entries[i];
-    var dateKey = e.timestamp.substring(0, 6); // YYMMDD
-    if (!groups[dateKey]) groups[dateKey] = [];
-    groups[dateKey].push(e);
-  }
-
-  var html = '';
-  var dateKeys = Object.keys(groups).sort().reverse();
-  for (var d = 0; d < dateKeys.length; d++) {
-    var dk = dateKeys[d];
-    var dayEntries = groups[dk];
-    html += '<div class="timeline-day">';
-    html += '<div class="timeline-day-label">' + formatDateLabel(dk) + '</div>';
-
-    for (var k = 0; k < dayEntries.length; k++) {
-      var en = dayEntries[k];
-      var dotColor = getStatusColor(en.status);
-      var statusLabel = en.status;
-      var statusCls = getStatusTextClass(en.status);
-      var timeStr = en.timestamp.length > 7 ? en.timestamp.substring(7) : '';
-      if (timeStr.length === 6) timeStr = timeStr.substring(0, 2) + ':' + timeStr.substring(2, 4) + ':' + timeStr.substring(4);
-
-      html += '<div class="tl-entry">';
-      html += '<div class="tl-dot-col"><div class="tl-dot" style="background:' + dotColor + '"></div></div>';
-      html += '<div class="tl-info">';
-      html += '<div class="tl-time">' + timeStr;
-      if (en.script && !data.script) html += ' · ' + escapeHtml(en.script);
-      html += '</div>';
-      html += '<div class="tl-meta">';
-      if (en.source) html += en.source;
-      if (en['function']) html += ' · ' + escapeHtml(en['function']);
-      if (en.duration && parseFloat(en.duration) > 0) html += ' · ' + parseFloat(en.duration).toFixed(1) + 's';
-      html += '</div>';
-      if (en.found !== undefined && en.found !== '' && en.found !== null) {
-        html += '<div class="tl-stats">Found: ' + en.found;
-        if (en.new_count !== undefined && en.new_count !== '') html += ' · New: ' + en.new_count;
-        if (en.added !== undefined && en.added !== '') html += ' · Updated: ' + en.added;
-        html += '</div>';
-      }
-      if (en.error && en.status !== 'COMPLETED') {
-        html += '<div class="tl-error">' + escapeHtml(en.error) + '</div>';
-      }
-      if (en.note) {
-        html += '<div class="tl-stats">' + escapeHtml(en.note) + '</div>';
-      }
-      html += '</div>';
-      html += '<div class="tl-status ' + statusCls + '">' + statusLabel + '</div>';
-      html += '</div>';
-    }
-    html += '</div>';
-  }
-
-  document.getElementById('timelineList').innerHTML = html;
-}
-
-// ═══════════════════════════════════════════════════════════════════
-// Rendering — All Logs
-// ═══════════════════════════════════════════════════════════════════
-
-function renderAllLogs(data) {
-  var entries = data.entries || [];
-  if (entries.length === 0) {
-    document.getElementById('logsList').innerHTML = '<div class="empty">No logs found</div>';
-    return;
-  }
-
-  var html = '';
-  for (var i = 0; i < entries.length; i++) {
-    var e = entries[i];
-    var dotColor = getStatusColor(e.status);
-    var statusCls = getStatusTextClass(e.status);
-    var ts = e.timestamp || '';
-    var timeStr = '';
-    if (ts.length >= 13) {
-      var t = ts.substring(7);
-      timeStr = ts.substring(0, 6) + ' ' + t.substring(0, 2) + ':' + t.substring(2, 4);
-    } else {
-      timeStr = ts;
-    }
-    var durText = (e.duration && parseFloat(e.duration) > 0) ? parseFloat(e.duration).toFixed(0) + 's' : '';
-
-    html += '<div class="log-row">';
-    html += '<div class="log-dot" style="background:' + dotColor + '"></div>';
-    html += '<div class="log-time">' + timeStr + '</div>';
-    html += '<div class="log-name">' + escapeHtml(e.script || '') + '</div>';
-    html += '<div class="log-status ' + statusCls + '">' + (e.status || '') + '</div>';
-    html += '<div class="log-dur">' + durText + '</div>';
-    html += '</div>';
-  }
-  document.getElementById('logsList').innerHTML = html;
-}
-
-// ═══════════════════════════════════════════════════════════════════
-// Navigation
-// ═══════════════════════════════════════════════════════════════════
-
-function switchView(view) {
-  state.currentView = view;
-  document.getElementById('dashboardView').className = 'dashboard-view' + (view === 'dashboard' ? ' active' : '');
-  document.getElementById('timelineView').className = 'timeline-view' + (view === 'timeline' ? ' active' : '');
-  document.getElementById('logsView').className = 'logs-view' + (view === 'logs' ? ' active' : '');
-
-  var navItems = document.querySelectorAll('.nav-item');
-  for (var i = 0; i < navItems.length; i++) {
-    navItems[i].className = 'nav-item' + (navItems[i].getAttribute('data-view') === view ? ' active' : '');
-  }
-
-  if (view === 'logs') loadAllLogs();
-}
-
-function showDashboard() {
-  switchView('dashboard');
-}
-
-function openTimeline(scriptName) {
-  state.currentScript = scriptName;
-  switchView('timeline');
-  document.getElementById('timelineTitle').textContent = scriptName;
-  document.getElementById('timelineList').innerHTML = '<div class="loading"><div class="spinner">⟳</div><div>Loading history...</div></div>';
-
-  fetchHistory(scriptName, 7, function(err, data) {
-    if (err) {
-      document.getElementById('timelineList').innerHTML = '<div class="empty">Error loading history</div>';
-      return;
-    }
-    renderTimeline(data);
-  });
-}
-
-function loadAllLogs() {
-  document.getElementById('logsList').innerHTML = '<div class="loading"><div class="spinner">⟳</div><div>Loading logs...</div></div>';
-  fetchHistory('', 3, function(err, data) {
-    if (err) {
-      document.getElementById('logsList').innerHTML = '<div class="empty">Error loading logs</div>';
-      return;
-    }
-    renderAllLogs(data);
-  });
+  // Update both views
+  mRenderDashboard(data);
+  dRenderAll(data);
 }
 
 function refresh() {
-  var btn = document.getElementById('syncBtn');
-  btn.classList.add('spinning');
+  document.querySelectorAll('.sync-btn').forEach(function(b){b.classList.add('spinning');});
   fetchStatus(function(err, data) {
-    btn.classList.remove('spinning');
-    if (err) return;
-    renderDashboard(data);
+    document.querySelectorAll('.sync-btn').forEach(function(b){b.classList.remove('spinning');});
+    if (!err) onData(data);
   });
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// Helpers
+// MOBILE: Render
 // ═══════════════════════════════════════════════════════════════════
 
-function getStatusClass(status) {
-  if (status === 'COMPLETED') return 'ok';
-  if (status === 'FAILED') return 'fail';
-  if (status === 'TIMED_OUT' || status === 'CANCELED') return 'warn';
-  return 'none';
+function mRenderDashboard(data) {
+  document.getElementById('mLastUpdate').textContent = 'Updated: ' + formatRelative(data.timestamp);
+  var total=state.scripts.length, ok=0, fail=0, warn=0;
+  for(var i=0;i<state.scripts.length;i++){var st=state.scripts[i].lastStatus;if(st==='COMPLETED')ok++;else if(st==='FAILED')fail++;else if(st==='TIMED_OUT')warn++;}
+  var chips='<div class="stat-chip"><div class="dot dot-ok"></div>'+ok+' OK</div>';
+  if(fail>0)chips+='<div class="stat-chip"><div class="dot dot-fail"></div>'+fail+' Failed</div>';
+  if(warn>0)chips+='<div class="stat-chip"><div class="dot dot-warn"></div>'+warn+' Timeout</div>';
+  chips+='<div class="stat-chip">'+total+' scripts</div>';
+  document.getElementById('mSummaryBar').innerHTML=chips;
+
+  var html='';
+  for(var j=0;j<state.scripts.length;j++){
+    var s=state.scripts[j],sc=getStatusClass(s.lastStatus),dc=getStatusColor(s.lastStatus),bc=(s.type==='GAS')?'badge-gas':'badge-python',rt=s.lastRun?formatRelative(s.lastRun):'No data',dur=s.lastDuration?(parseFloat(s.lastDuration).toFixed(1)+'s'):'';
+    html+='<div class="script-card status-'+sc+'" onclick="mOpenTimeline(\''+esc(s.name)+'\')">';
+    html+='<div class="card-top"><span class="card-name">'+esc(s.name)+'</span><span class="card-badge '+bc+'">'+esc(s.type)+'</span></div>';
+    html+='<div class="card-mid"><span class="status-dot" style="background:'+dc+'"></span><span>'+esc(s.lastStatus||'UNKNOWN')+'</span>';
+    if(dur)html+='<span>· '+dur+'</span>';
+    html+='<span>· '+rt+'</span></div>';
+    html+='<div class="card-bottom"><div>⟳ '+s.runs24h+' runs / 24h';
+    if(s.fails24h>0)html+=' · <span style="color:var(--fail)">'+s.fails24h+' fails</span>';
+    html+='</div>';if(s.lastFunction)html+='<span>'+esc(s.lastFunction)+'</span>';html+='</div>';
+    if(s.lastError&&s.lastStatus!=='COMPLETED')html+='<div class="card-error">'+esc(s.lastError)+'</div>';
+    html+='</div>';
+  }
+  document.getElementById('mCardList').innerHTML=html||'<div class="empty">No scripts found</div>';
 }
 
-function getStatusColor(status) {
-  if (status === 'COMPLETED') return 'var(--ok)';
-  if (status === 'FAILED') return 'var(--fail)';
-  if (status === 'TIMED_OUT' || status === 'CANCELED') return 'var(--warn)';
-  return 'var(--text-muted)';
+function mSwitchView(view) {
+  state.mView=view;
+  document.getElementById('mDashboard').className='m-dashboard'+(view==='dashboard'?' active':'');
+  document.getElementById('mTimeline').className='m-timeline'+(view==='timeline'?' active':'');
+  document.getElementById('mLogs').className='m-logs'+(view==='logs'?' active':'');
+  document.querySelectorAll('.nav-item').forEach(function(b){b.classList.toggle('active',b.getAttribute('data-view')===view);});
+  if(view==='logs')mLoadLogs();
+}
+function mShowDashboard(){mSwitchView('dashboard');}
+function mOpenTimeline(name){
+  state.selectedScript=name;mSwitchView('timeline');
+  document.getElementById('mTimelineTitle').textContent=name;
+  document.getElementById('mTimelineList').innerHTML='<div class="loading"><div class="spinner">⟳</div></div>';
+  fetchHistory(name,7,function(err,data){if(err){document.getElementById('mTimelineList').innerHTML='<div class="empty">Error</div>';return;}mRenderTimeline(data);});
+}
+function mRenderTimeline(data){
+  var entries=data.entries||[];if(!entries.length){document.getElementById('mTimelineList').innerHTML='<div class="empty">No entries</div>';return;}
+  var groups={},keys=[];for(var i=0;i<entries.length;i++){var dk=entries[i].timestamp.substring(0,6);if(!groups[dk]){groups[dk]=[];keys.push(dk);}groups[dk].push(entries[i]);}
+  var html='';keys.sort().reverse().forEach(function(dk){
+    html+='<div class="timeline-day"><div class="timeline-day-label">'+formatDateLabel(dk)+'</div>';
+    groups[dk].forEach(function(en){
+      var dc=getStatusColor(en.status),sc=getStatusTextClass(en.status),ts=en.timestamp.length>7?en.timestamp.substring(7):'';
+      if(ts.length===6)ts=ts.substring(0,2)+':'+ts.substring(2,4)+':'+ts.substring(4);
+      html+='<div class="tl-entry"><div class="tl-dot" style="background:'+dc+'"></div><div class="tl-info"><div class="tl-time">'+ts;
+      if(en.script&&!data.script)html+=' · '+esc(en.script);
+      html+='</div><div class="tl-meta">';if(en.source)html+=en.source;if(en['function'])html+=' · '+esc(en['function']);if(en.duration&&parseFloat(en.duration)>0)html+=' · '+parseFloat(en.duration).toFixed(1)+'s';html+='</div>';
+      if(en.found!==undefined&&en.found!=='')html+='<div class="tl-stats">Found: '+en.found+(en.new_count!==undefined?' · New: '+en.new_count:'')+(en.added!==undefined?' · Updated: '+en.added:'')+'</div>';
+      if(en.error&&en.status!=='COMPLETED')html+='<div class="tl-error">'+esc(en.error)+'</div>';
+      if(en.note)html+='<div class="tl-stats">'+esc(en.note)+'</div>';
+      html+='</div><div class="tl-status '+sc+'">'+en.status+'</div></div>';
+    });html+='</div>';
+  });
+  document.getElementById('mTimelineList').innerHTML=html;
+}
+function mLoadLogs(){
+  document.getElementById('mLogsList').innerHTML='<div class="loading"><div class="spinner">⟳</div></div>';
+  fetchHistory('',3,function(err,data){if(err){document.getElementById('mLogsList').innerHTML='<div class="empty">Error</div>';return;}
+    var entries=data.entries||[];if(!entries.length){document.getElementById('mLogsList').innerHTML='<div class="empty">No logs</div>';return;}
+    var html='';entries.forEach(function(e){var dc=getStatusColor(e.status),sc=getStatusTextClass(e.status),ts=e.timestamp||'',timeStr='';
+      if(ts.length>=13){var t=ts.substring(7);timeStr=ts.substring(0,6)+' '+t.substring(0,2)+':'+t.substring(2,4);}else timeStr=ts;
+      var dur=(e.duration&&parseFloat(e.duration)>0)?parseFloat(e.duration).toFixed(0)+'s':'';
+      html+='<div class="log-row"><div class="log-dot" style="background:'+dc+'"></div><div class="log-time">'+timeStr+'</div><div class="log-name">'+esc(e.script)+'</div><div class="log-status '+sc+'">'+(e.status||'')+'</div><div class="log-dur">'+dur+'</div></div>';
+    });document.getElementById('mLogsList').innerHTML=html;
+  });
 }
 
-function getStatusTextClass(status) {
-  if (status === 'COMPLETED') return 'status-ok';
-  if (status === 'FAILED') return 'status-fail';
-  if (status === 'TIMED_OUT' || status === 'CANCELED') return 'status-warn';
-  return '';
+// ═══════════════════════════════════════════════════════════════════
+// DESKTOP: Render
+// ═══════════════════════════════════════════════════════════════════
+
+function dRenderAll(data) {
+  document.getElementById('dLastUpdate').textContent = 'Updated: ' + formatRelative(data.timestamp);
+  document.getElementById('dFooterLeft').textContent = state.scripts.length + ' scripts · Last refresh: ' + formatTime(data.timestamp);
+  dRenderSummary(); dApplyFilters();
 }
 
-function formatRelative(ts) {
-  if (!ts) return 'Never';
-  // ts format: YYMMDD.HHmmss
-  var parts = ts.split('.');
-  if (parts.length < 2) return ts;
-  var d = parts[0], t = parts[1];
-  if (d.length !== 6 || t.length !== 6) return ts;
-
-  var year = 2000 + parseInt(d.substring(0, 2));
-  var month = parseInt(d.substring(2, 4)) - 1;
-  var day = parseInt(d.substring(4, 6));
-  var hour = parseInt(t.substring(0, 2));
-  var min = parseInt(t.substring(2, 4));
-  var sec = parseInt(t.substring(4, 6));
-
-  var then = new Date(year, month, day, hour, min, sec);
-  var now = new Date();
-  var diff = Math.floor((now - then) / 1000);
-
-  if (diff < 0) return 'just now';
-  if (diff < 60) return diff + 's ago';
-  if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
-  if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
-  return Math.floor(diff / 86400) + 'd ago';
+function dRenderSummary() {
+  var all=state.scripts,ok=0,fail=0,warn=0,runs=0,fails24=0;
+  for(var i=0;i<all.length;i++){var s=all[i];if(s.lastStatus==='COMPLETED')ok++;else if(s.lastStatus==='FAILED')fail++;else if(s.lastStatus==='TIMED_OUT')warn++;runs+=(s.runs24h||0);fails24+=(s.fails24h||0);}
+  document.getElementById('dSumTotal').textContent=all.length;document.getElementById('dSumOk').textContent=ok;document.getElementById('dSumFail').textContent=fail;document.getElementById('dSumWarn').textContent=warn;document.getElementById('dSumRuns').textContent=runs;document.getElementById('dSumFails24').textContent=fails24>0?(fails24+' failed'):'';
+  document.getElementById('dCountAll').textContent=all.length;document.getElementById('dCountOk').textContent=ok;document.getElementById('dCountFail').textContent=fail;document.getElementById('dCountWarn').textContent=warn;
 }
 
-function formatDateLabel(yymmdd) {
-  if (yymmdd.length !== 6) return yymmdd;
-  var year = 2000 + parseInt(yymmdd.substring(0, 2));
-  var month = parseInt(yymmdd.substring(2, 4)) - 1;
-  var day = parseInt(yymmdd.substring(4, 6));
-  var d = new Date(year, month, day);
-  var days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  var months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  return days[d.getDay()] + ', ' + day + ' ' + months[month] + ' ' + year;
+function dApplyFilters() {
+  var search=(document.getElementById('dSearchInput').value||'').toLowerCase();
+  state.filtered=state.scripts.filter(function(s){
+    if(state.statusFilter==='ok'&&s.lastStatus!=='COMPLETED')return false;
+    if(state.statusFilter==='fail'&&s.lastStatus!=='FAILED')return false;
+    if(state.statusFilter==='warn'&&s.lastStatus!=='TIMED_OUT')return false;
+    if(state.typeFilter!=='all'&&s.type!==state.typeFilter)return false;
+    if(search&&s.name.toLowerCase().indexOf(search)===-1)return false;
+    return true;
+  });
+  var col=state.sortCol,asc=state.sortAsc;
+  state.filtered.sort(function(a,b){var va=a[col],vb=b[col];if(typeof va==='number'&&typeof vb==='number')return asc?va-vb:vb-va;va=String(va||'');vb=String(vb||'');var c=va.localeCompare(vb);return asc?c:-c;});
+  dRenderTable();
 }
 
-function escapeHtml(s) {
-  if (!s) return '';
-  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+function dRenderTable() {
+  var list=state.filtered;
+  document.getElementById('dTableCount').textContent=list.length+' of '+state.scripts.length;
+  var ths=document.querySelectorAll('#dMainTable thead th');
+  for(var t=0;t<ths.length;t++){var col=ths[t].getAttribute('data-col'),arrow=ths[t].querySelector('.sort-arrow');if(!arrow)continue;if(col===state.sortCol){ths[t].classList.add('sorted');arrow.textContent=state.sortAsc?'▲':'▼';}else{ths[t].classList.remove('sorted');arrow.textContent='';}}
+  if(!list.length){document.getElementById('dTableBody').innerHTML='<tr><td colspan="8"><div class="empty">No scripts match</div></td></tr>';return;}
+  var html='';
+  for(var i=0;i<list.length;i++){
+    var s=list[i],dc=getStatusColor(s.lastStatus),sc=getStatusTextClass(s.lastStatus),bc=(s.type==='GAS')?'badge-gas':'badge-python',rt=s.lastRun?formatRelative(s.lastRun):'-',dur=(s.lastDuration&&parseFloat(s.lastDuration)>0)?parseFloat(s.lastDuration).toFixed(1)+'s':'-',sel=(s.name===state.selectedScript)?' selected':'';
+    html+='<tr class="'+sel+'" onclick="dSelectScript(\''+esc(s.name)+'\')">';
+    html+='<td class="td-name">'+esc(s.name)+'</td><td><span class="td-badge '+bc+'">'+esc(s.type)+'</span></td>';
+    html+='<td><div class="td-status"><span class="dot" style="background:'+dc+'"></span><span class="'+sc+'">'+esc(s.lastStatus||'UNKNOWN')+'</span></div></td>';
+    html+='<td class="td-muted">'+rt+'</td><td class="td-right td-muted">'+dur+'</td><td class="td-right">'+(s.runs24h||0)+'</td>';
+    html+='<td class="td-right">'+(s.fails24h>0?'<span style="color:var(--fail)">'+s.fails24h+'</span>':'0')+'</td>';
+    html+='<td class="td-error">'+esc(s.lastError&&s.lastStatus!=='COMPLETED'?s.lastError:'')+'</td></tr>';
+  }
+  document.getElementById('dTableBody').innerHTML=html;
+}
+
+function dFilterStatus(s){state.statusFilter=s;document.querySelectorAll('#dSidebarStats .sidebar-stat').forEach(function(e){e.classList.toggle('active',e.getAttribute('data-filter')===s);});dApplyFilters();}
+function dFilterType(t){state.typeFilter=t;document.querySelectorAll('.filter-btn').forEach(function(e){e.classList.toggle('active',e.getAttribute('data-type')===t);});dApplyFilters();}
+function dSortBy(col){if(state.sortCol===col)state.sortAsc=!state.sortAsc;else{state.sortCol=col;state.sortAsc=(col==='name'||col==='type');}dApplyFilters();}
+
+function dSelectScript(name){
+  if(state.selectedScript===name){dCloseHistory();return;}
+  state.selectedScript=name;dRenderTable();
+  document.getElementById('dHistoryPanel').classList.remove('hidden');
+  document.getElementById('dHistoryBody').innerHTML='<tr><td colspan="10"><div class="loading"><div class="spinner">⟳</div></div></td></tr>';
+  document.getElementById('dHistoryTitle').textContent=name+' — Loading...';
+  fetchHistory(name,7,function(err,data){if(err){document.getElementById('dHistoryBody').innerHTML='<tr><td colspan="10" class="empty">Error</td></tr>';return;}dRenderHistory(data);});
+}
+function dCloseHistory(){state.selectedScript='';document.getElementById('dHistoryPanel').classList.add('hidden');dRenderTable();}
+
+function dRenderHistory(data){
+  var entries=data.entries||[];
+  document.getElementById('dHistoryTitle').textContent=(data.script||'All')+' — Last '+data.days+' days ('+entries.length+')';
+  if(!entries.length){document.getElementById('dHistoryBody').innerHTML='<tr><td colspan="10" class="empty">No entries</td></tr>';return;}
+  var html='';
+  entries.forEach(function(e){
+    var sc=getStatusTextClass(e.status),ts=e.timestamp||'',timeStr='';
+    if(ts.length>=13)timeStr=ts.substring(0,6)+' '+ts.substring(7,9)+':'+ts.substring(9,11)+':'+ts.substring(11,13);else timeStr=ts;
+    var dur=(e.duration&&parseFloat(e.duration)>0)?parseFloat(e.duration).toFixed(1)+'s':'-';
+    html+='<tr><td style="white-space:nowrap">'+timeStr+'</td><td>'+esc(e.source||'')+'</td><td>'+esc(e['function']||'')+'</td>';
+    html+='<td><span class="'+sc+'">'+esc(e.status)+'</span></td><td class="td-right">'+dur+'</td>';
+    html+='<td class="td-right">'+(e.found!==undefined&&e.found!==''?e.found:'-')+'</td>';
+    html+='<td class="td-right">'+(e.new_count!==undefined&&e.new_count!==''?e.new_count:'-')+'</td>';
+    html+='<td class="td-right">'+(e.added!==undefined&&e.added!==''?e.added:'-')+'</td>';
+    html+='<td class="td-error">'+esc(e.error&&e.status!=='COMPLETED'?e.error:'')+'</td>';
+    html+='<td class="td-muted" style="max-width:200px;overflow:hidden;text-overflow:ellipsis">'+esc(e.note||'')+'</td></tr>';
+  });
+  document.getElementById('dHistoryBody').innerHTML=html;
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -508,25 +521,13 @@ function escapeHtml(s) {
 // ═══════════════════════════════════════════════════════════════════
 
 (function init() {
-  // Try cache first
-  try {
-    var cached = localStorage.getItem('status_cache');
-    if (cached) {
-      var data = JSON.parse(cached);
-      renderDashboard(data);
-    }
-  } catch(e) {}
-
-  // Fetch fresh
-  fetchStatus(function(err, data) {
-    if (err) {
-      if (!state.scripts.length) {
-        document.getElementById('cardList').innerHTML = '<div class="empty">Could not load data</div>';
-      }
-      return;
-    }
-    renderDashboard(data);
+  try { var cached=localStorage.getItem('status_cache');if(cached)onData(JSON.parse(cached)); } catch(e) {}
+  fetchStatus(function(err,data){
+    if(err){if(!state.scripts.length){document.getElementById('mCardList').innerHTML='<div class="empty">Could not load</div>';document.getElementById('dTableBody').innerHTML='<tr><td colspan="8"><div class="empty">Could not load</div></td></tr>';}return;}
+    onData(data);
   });
+  // Desktop auto-refresh
+  state.refreshTimer=setInterval(function(){if(document.getElementById('dAutoRefresh')&&document.getElementById('dAutoRefresh').checked)refresh();},60000);
 })();
 </script>
 </body>
