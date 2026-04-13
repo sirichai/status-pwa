@@ -252,6 +252,15 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
         </div>
       </div>
       <div>
+        <div class="sidebar-title">Period</div>
+        <div class="filter-group">
+          <button class="filter-btn" data-period="1" onclick="dFilterPeriod('1')">1 Day</button>
+          <button class="filter-btn active" data-period="7" onclick="dFilterPeriod('7')">7 Days</button>
+          <button class="filter-btn" data-period="30" onclick="dFilterPeriod('30')">30 Days</button>
+          <button class="filter-btn" data-period="all" onclick="dFilterPeriod('all')">All</button>
+        </div>
+      </div>
+      <div>
         <div class="sidebar-title">Type</div>
         <div class="filter-group">
           <button class="filter-btn active" data-type="all" onclick="dFilterType('all')">All</button>
@@ -309,7 +318,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 
 var API_URL = 'https://script.google.com/macros/s/AKfycbyJgWHsro6BDSGBUW0Ax-stnZpzr49Ex1rj80PxmJMX-Ac7z_7UM-lvdlRuFNrxVdPW/exec';
 var IS_GAS = (typeof google !== 'undefined' && google.script && google.script.run);
-var state = { scripts: [], filtered: [], sortCol: 'lastRun', sortAsc: false, statusFilter: 'all', typeFilter: 'all', selectedScript: '', mView: 'dashboard', refreshTimer: null };
+var state = { scripts: [], filtered: [], sortCol: 'lastRun', sortAsc: false, statusFilter: 'all', typeFilter: 'all', periodFilter: '7', selectedScript: '', mView: 'dashboard', refreshTimer: null };
 
 // ═══════════════════════════════════════════════════════════════════
 // Shared Data Fetching
@@ -465,11 +474,27 @@ function dRenderSummary() {
 
 function dApplyFilters() {
   var search=(document.getElementById('dSearchInput').value||'').toLowerCase();
+  var periodCutoff = '';
+  if (state.periodFilter !== 'all') {
+    var days = parseInt(state.periodFilter);
+    var cutoff = new Date(Date.now() - days * 86400000);
+    var yy = String(cutoff.getFullYear()).substring(2);
+    var mm = String(cutoff.getMonth()+1).padStart(2,'0');
+    var dd = String(cutoff.getDate()).padStart(2,'0');
+    var hh = String(cutoff.getHours()).padStart(2,'0');
+    var mi = String(cutoff.getMinutes()).padStart(2,'0');
+    var ss = String(cutoff.getSeconds()).padStart(2,'0');
+    periodCutoff = yy+mm+dd+'.'+hh+mi+ss;
+  }
   state.filtered=state.scripts.filter(function(s){
     if(state.statusFilter==='ok'&&s.lastStatus!=='COMPLETED')return false;
     if(state.statusFilter==='fail'&&s.lastStatus!=='FAILED')return false;
     if(state.statusFilter==='warn'&&s.lastStatus!=='TIMED_OUT')return false;
     if(state.typeFilter!=='all'&&s.type!==state.typeFilter)return false;
+    if(periodCutoff && s.lastRun) {
+      var normalized = s.lastRun.replace(':','.');
+      if(normalized < periodCutoff) return false;
+    }
     if(search&&s.name.toLowerCase().indexOf(search)===-1)return false;
     return true;
   });
@@ -498,7 +523,8 @@ function dRenderTable() {
 }
 
 function dFilterStatus(s){state.statusFilter=s;document.querySelectorAll('#dSidebarStats .sidebar-stat').forEach(function(e){e.classList.toggle('active',e.getAttribute('data-filter')===s);});dApplyFilters();}
-function dFilterType(t){state.typeFilter=t;document.querySelectorAll('.filter-btn').forEach(function(e){e.classList.toggle('active',e.getAttribute('data-type')===t);});dApplyFilters();}
+function dFilterType(t){state.typeFilter=t;document.querySelectorAll('.filter-btn[data-type]').forEach(function(e){e.classList.toggle('active',e.getAttribute('data-type')===t);});dApplyFilters();}
+function dFilterPeriod(p){state.periodFilter=p;document.querySelectorAll('.filter-btn[data-period]').forEach(function(e){e.classList.toggle('active',e.getAttribute('data-period')===p);});dApplyFilters();}
 function dSortBy(col){if(state.sortCol===col)state.sortAsc=!state.sortAsc;else{state.sortCol=col;state.sortAsc=(col==='name'||col==='type');}dApplyFilters();}
 
 function dSelectScript(name){
